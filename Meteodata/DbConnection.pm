@@ -1,4 +1,4 @@
-package Meteodata::DbConnection
+package Meteodata::DbConnection;
 
 use Moo;
 use DBI;
@@ -12,16 +12,15 @@ has 'user' => (
 has 'host' => (
 	is => 'ro'
 );
-has 'db' => (
+has 'keyspace' => (
 	is => 'ro',
-	init_arg => undef
 );
 
 sub connect {
 	my $self = shift;
 	my $passwd = shift;
-	$db = DBI->connect("DBI:mysql:database=$elf->name;host=$self->host",
-				$slef->user,$passwd,{ 'RaiseError' => 1 });
+	$db = DBI->connect("dbi:Cassandra:host=$self->host:keyspace=$self->keyspace",
+				$self->user,$passwd,{ 'RaiseError' => 1 });
 	return defined($db);
 }
 
@@ -40,3 +39,6 @@ sub add_new_data {
 	# ...
 }
 
+1;
+
+__END__

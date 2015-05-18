@@ -97,16 +97,16 @@ sub check_crc {
 	# Compute the CRC on data
 	foreach my $data (unpack("C*",$blob))
 	{
-	   $computed_crc = crc_round($data,$computed_crc);
+	   crc_round($data,\$computed_crc);
 	}
 
 	# Check first byte (MSB) of CRC
 	my $data = ($crc & 0xFF00) >> 8;
-	$computed_crc = crc_round($data,$computed_crc);
+	crc_round($data,\$computed_crc);
 
 	# Check second byte (LSB) of CRC
 	$data = $crc & 0xFF;
-	$computed_crc = crc_round($data,$computed_crc);
+	crc_round($data,\$computed_crc);
 
 	return !$computed_crc; #CRC check passes if crc == 0
 }
@@ -121,10 +121,8 @@ sub crc_round {
 	# 	"Vantage Pro TM , Vantage Pro2 TM and Vantage Vue TM
 	#	Serial Communication Reference Manual", by Davis Instruments Corp.
 	#	v2.61, March 29th, 2013
-	my $index = $current_crc >> 8 ^ $byte;
-	$current_crc = $crc_table[$index] ^ (($current_crc << 8) & 0xFFFF);
-	
-	return $current_crc;
+	my $index = $$current_crc >> 8 ^ $byte;
+	$$current_crc = $crc_table[$index] ^ (($$current_crc << 8) & 0xFFFF);
 }
 
 

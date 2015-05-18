@@ -4,9 +4,9 @@
 use strict;
 use warnings;
 
-use Meteodata::Collectors::VantagePro2Collectors;
+use Meteodata::Collectors::VantagePro2Collector;
 
-my $controller = Meteodata::Collectors::VantagePro2Collectors->new(
+my $controller = Meteodata::Collectors::VantagePro2Collector->new(
 	console => *STDOUT,
 );
 

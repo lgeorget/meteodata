@@ -56,10 +56,153 @@ has console => (
 0xef1f, 0xff3e, 0xcf5d, 0xdf7c, 0xaf9b, 0xbfba, 0x8fd9, 0x9ff8,
 0x6e17, 0x7e36, 0x4e55, 0x5e74, 0x2e93, 0x3eb2, 0xed1, 0x1ef0);
 
+sub read {
+	my $self = shift;
+	my $buffer = shift;
+	my $size = shift;
 
-sub getOneRound {
+	eval {
+		local $SIG{ALRM} = sub { die "alarm\n" }; # NB: \n required
+		alarm 3;
+		$nread = sysread($self->console(), $$buffer, $size);
+		alarm 0;
+	};
+	if ($@) {
+		die unless $@ eq "alarm\n"; # TODO: change die for something
+		                            # less definitive
+		return 0;
+		# timed out
+	}
+	else {
+		return $nread;
+		# didn't
+	}
+
+sub getOneLoop {
 	my $self = shift;
 
+	$self->wake_up();
+
+	my %data;
+	my $l1 = "A"x99;
+	my $l2 = "A"x99;
+
+	my $attempts = 3;
+	while (my $ok == 0 && $attempts > 0) {
+		$self->write("LPS 3 1");
+
+		# First, we will receive LOOP 1
+		$ok = $self->read($self, \$l1, 99) == 99;
+		# Next, LOOP 2
+		$ok = $ok && $self->read($self, \$l2, 99) == 99;
+		if ($self->crc_check(substr($l1, 0, 97),
+				     extract(\$l1, "N", 97, 2)) &&
+		    $self->crc_check(substr($l2, 0, 97),
+				     extract(\$l2, "N", 97, 2))) {
+
+			$ok = 1;
+		} else {
+			$attempts -= 1;
+			warn "Reception error, retrying";
+		}
+	}
+
+	if ($attempts <= 0) {
+		warn "Impossible to receive the LOOP packets";
+		return -1;
+	}
+
+	if (substr($l1, 0, 3) != "LOO" ||
+	    extract($l1, "C", 4, 1) != 0 ||
+	    substr($l1, 95, 2) != "\n\r") {
+		warn "LOOP 1 packet ill-formatted";
+		return -2;
+	}
+	if (substr($l2, 0, 3) != "LOO" ||
+	    extract($l2, "C", 4, 1) != 1 ||
+	    substr($l2, 95, 2) != "\n\r") {
+		warn "LOOP 2 packet ill-formatted";
+		return -3;
+	}
+
+	# Parse LOOP 1
+	$data{'Bar Trend'} = extract(\$l1, "C", 3, 1);
+	$data{'Barometer'} = extract(\$l1, "v", 7, 2);
+	$data{'Inside Temperature'} = extract(\$l1, "v", 9, 2);
+	$data{'Inside Humidity'} = extract(\$l1, "C", 11, 1);
+	$data{'Outside Temperature'} = extract(\$l1, "v", 12, 2);
+	$data{'Wind Speed'} = extract(\$l1, "C", 14, 1);
+	$data{'10 Min Avg Wind Speed'} = extract(\$l1, "C", 15, 1);
+	$data{'Wind Direction'} = extract(\$l1, "v", 16, 2);
+	$data{'Extra Temperature'} = [
+		extract(\$l1, "C", 18, 1),
+		extract(\$l1, "C", 19, 1),
+		extract(\$l1, "C", 20, 1),
+		extract(\$l1, "C", 21, 1),
+		extract(\$l1, "C", 22, 1),
+		extract(\$l1, "C", 23, 1),
+		extract(\$l1, "C", 24, 1)
+	];
+	$data{'Soil Temperature'} = [
+		extract(\$l1, "C", 25, 1),
+		extract(\$l1, "C", 26, 1),
+		extract(\$l1, "C", 27, 1),
+		extract(\$l1, "C", 28, 1)
+	];
+	$data{'Leaf Temperature'} = [
+		extract(\$l1, "C", 29, 1),
+		extract(\$l1, "C", 30, 1),
+		extract(\$l1, "C", 31, 1),
+		extract(\$l1, "C", 32, 1)
+	];
+	$data{'Outside Humidity'} = extract(\$l1, "C", 33, 1);
+	$data{'Extra Humidities'} = [
+		extract(\$l1, "C", 34, 1),
+		extract(\$l1, "C", 35, 1),
+		extract(\$l1, "C", 36, 1),
+		extract(\$l1, "C", 37, 1),
+		extract(\$l1, "C", 38, 1),
+		extract(\$l1, "C", 39, 1),
+		extract(\$l1, "C", 40, 1)
+	];
+	$data{'Rain Rate'} = extract(\$l1, "v", 41, 2);
+	$data{'UV'} = extract(\$l1, "C", 43, 1);
+	$data{'Solar Radiation'} = extract(\$l1, "v", 44, 2);
+	$data{'Storm Rain'} = extract(\$l1, "v", 46, 2);
+	$data{'Start Date of current Storm'} = extract(\$l1, "v", 48, 2);
+	$data{'Day Rain'} = extract(\$l1, "v", 50, 2);
+	$data{'Month Rain'} = extract(\$l1, "v", 52, 2);
+	$data{'Year Rain'} = extract(\$l1, "v", 54, 2);
+	$data{'Day ET'} = extract(\$l1, "v", 56, 2);
+	$data{'Month ET'} = extract(\$l1, "v", 58, 2);
+	$data{'Year ET'} = extract(\$l1, "v", 60, 2);
+	$data{'Soil Moistures'} = [
+		extract(\$l1, "C", 62, 1),
+		extract(\$l1, "C", 63, 1),
+		extract(\$l1, "C", 64, 1),
+		extract(\$l1, "C", 65, 1)
+	];
+	$data{'Leaf Wetnesses'} = [
+		extract(\$l1, "C", 66, 1),
+		extract(\$l1, "C", 67, 1),
+		extract(\$l1, "C", 68, 1),
+		extract(\$l1, "C", 69, 1)
+	];
+	$data{'Console Battery Voltage'} = extract(\$l1, "v", 87, 2);
+	$data{'Time of Sunrise'} = extract(\$l1, "v", 91, 2);
+	$data{'Time of Sunset'} = extract(\$l1, "v", 93, 2);
+
+	# Parse LOOP 2
+
+}
+
+sub extract {
+	my $answer = shift;
+	my $packer = shift;
+	my $offset = shift;
+	my $length = shift;
+
+	return unpack($packer, substr($$answer, $offset, $length));
 }
 
 sub write {

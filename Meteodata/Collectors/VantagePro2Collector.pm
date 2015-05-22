@@ -61,6 +61,7 @@ sub read {
 	my $buffer = shift;
 	my $size = shift;
 
+	my $nread = 0;
 	eval {
 		local $SIG{ALRM} = sub { die "alarm\n" }; # NB: \n required
 		alarm 3;
@@ -70,13 +71,10 @@ sub read {
 	if ($@) {
 		die unless $@ eq "alarm\n"; # TODO: change die for something
 		                            # less definitive
-		return 0;
 		# timed out
 	}
-	else {
-		return $nread;
-		# didn't
-	}
+	return $nread; # return 0 if nothing could be read, because of timeout
+}
 
 sub getOneLoop {
 	my $self = shift;

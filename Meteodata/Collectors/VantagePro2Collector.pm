@@ -107,20 +107,20 @@ sub getOneLoop {
 
 	if ($attempts <= 0) {
 		warn "Impossible to receive the LOOP packets";
-		return -1;
+		return undef;
 	}
 
 	if (substr($l1, 0, 3) != "LOO" ||
-	    extract($l1, "C", 4, 1) != 0 ||
+	    extract(\$l1, "C", 4, 1) != 0 ||
 	    substr($l1, 95, 2) != "\n\r") {
 		warn "LOOP 1 packet ill-formatted";
-		return -2;
+		return undef;
 	}
 	if (substr($l2, 0, 3) != "LOO" ||
-	    extract($l2, "C", 4, 1) != 1 ||
+	    extract(\$l2, "C", 4, 1) != 1 ||
 	    substr($l2, 95, 2) != "\n\r") {
 		warn "LOOP 2 packet ill-formatted";
-		return -3;
+		return undef;
 	}
 
 	# Parse LOOP 1

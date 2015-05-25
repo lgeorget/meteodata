@@ -191,7 +191,20 @@ sub getOneLoop {
 	$data{'Time of Sunset'} = extract(\$l1, "v", 93, 2);
 
 	# Parse LOOP 2
+	# Only extract fields different from LOOP1
+	$data{'10-Min Avg Wind Speed'} = extract(\$l2, "v", 18, 2);
+	$data{'2-Min Avg Wind Speed'} = extract(\$l2, "v", 20, 2);
+	$data{'10-Min Wind Gust'} = extract(\$l2, "v", 22, 2);
+	$data{'Wind Direction for the 10-Min Wind Gust'} = extract(\$l2, "v", 24, 2);
+	$data{'Dew Point'} = extract(\$l2, "v", 30, 2);
+	$data{'Heat Index'} = extract(\$l2, "v", 35, 2);
+	$data{'Wind Chill'} = extract(\$l2, "v", 37, 2);
+	$data{'THSW Index'} = extract(\$l2, "v", 39, 2);
+	$data{'Last 15-min Rain'} = extract(\$l2, "v", 52, 2);
+	$data{'Last Hour Rain'} = extract(\$l2, "v", 54, 2);
+	$data{'Last 24-Hour Rain'} = extract(\$l2, "v", 58, 2);
 
+	return \%data;
 }
 
 sub extract {

@@ -241,11 +241,14 @@ sub write {
 sub wake_up {
 	my $self = shift;
 
+	print "Waking up the device\n";
 	my $answer;
 	foreach (1..3) {
-		$self->write("\n");
-		sysread($self->console(), $answer, 2);
-		if ($answer != "\n\r") {
+		my $nbread;
+		$self->write("\n",0);
+		$nbread = $self->read(\$answer, 2);
+		print "Answer: ",extract(\$answer, "CC", 0, 1),"\n";
+		if ($nbread != 2 || $answer ne "\n\r") {
 			sleep 2; #wait before retrying
 		} else {
 			last; #succesfully woken up, jump out of the loop

@@ -61,18 +61,24 @@ sub read {
 	my $buffer = shift;
 	my $size = shift;
 
-	my $nread = 0;
+	my $nread;
 	eval {
 		local $SIG{ALRM} = sub { die "alarm\n" }; # NB: \n required
-		alarm 3;
-		$nread = sysread($self->console(), $$buffer, $size);
-		alarm 0;
+		$nread = 0;
+		my $last_read = -1;
+		while ($nread < $size && $last_read != 0) {
+			alarm 5;
+			$last_read = sysread($self->console(), $$buffer, $size, $nread);
+			alarm 0;
+			$nread += $last_read;
+		}
 	};
 	if ($@) {
 		die unless $@ eq "alarm\n"; # TODO: change die for something
 		                            # less definitive
-		# timed out
+		warn "timeout!\n";
 	}
+	print "read $nread bytes\n";
 	return $nread; # return 0 if nothing could be read, because of timeout
 }
 

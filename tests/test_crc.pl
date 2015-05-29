@@ -35,5 +35,5 @@ my $controller = Meteodata::Collectors::VantagePro2Collector->new(
 	console => *STDOUT,
 );
 
-print $controller->check_crc("\xC6\xCE\xA2\x03",unpack("S>","\xE2\xB4"));
+print $controller->check_crc("\xC6\xCE\xA2\x03\xE2\xB4");
 

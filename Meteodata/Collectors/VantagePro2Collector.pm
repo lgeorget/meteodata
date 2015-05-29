@@ -258,8 +258,8 @@ sub wake_up {
 
 sub check_crc {
 	my $self = shift;
-	my $blob = shift; # a binary string received or to be sent to the Vantage Pro 2 station
-	my $crc = shift; # the CRC value for $blob
+	my $blob = shift; # a binary string received or to be sent
+	                  # to the Vantage Pro 2 station, the CRC is at the end
 
 	# Initialization
 	my $computed_crc = 0;
@@ -270,15 +270,11 @@ sub check_crc {
 	   crc_round($data,\$computed_crc);
 	}
 
-	# Check first byte (MSB) of CRC
-	my $data = ($crc & 0xFF00) >> 8;
-	crc_round($data,\$computed_crc);
-
-	# Check second byte (LSB) of CRC
-	$data = $crc & 0xFF;
-	crc_round($data,\$computed_crc);
-
-	return !$computed_crc; #CRC check passes if crc == 0
+	if ($computed_crc == 0) { #CRC check passes if crc == 0
+		return 1;
+	} else {
+		return 0;
+	}
 }
 
 sub crc_round {

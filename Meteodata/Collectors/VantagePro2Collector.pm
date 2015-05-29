@@ -88,127 +88,131 @@ sub getOneLoop {
 	$self->wake_up();
 
 	my %data;
-	my $l1 = "A"x99;
-	my $l2 = "A"x99;
+	my $loops;
 
 	my $attempts = 3;
-	while (my $ok == 0 && $attempts > 0) {
-		$self->write("LPS 3 1");
+	my $ok = 0;
+	while ($ok == 0 && $attempts > 0) {
+		$self->write("LPS 3 2",1);
 
-		# First, we will receive LOOP 1
-		$ok = $self->read($self, \$l1, 99) == 99;
-		# Next, LOOP 2
-		$ok = $ok && $self->read($self, \$l2, 99) == 99;
-		if ($self->crc_check(substr($l1, 0, 97),
-				     extract(\$l1, "N", 97, 2)) &&
-		    $self->crc_check(substr($l2, 0, 97),
-				     extract(\$l2, "N", 97, 2))) {
+		# First, we will receive LOOP1 and 2.5 sec later LOOP2
+		print "reading...\n";
+		# We expect 99 bytes (LOOP1) + 99 bytes (LOOP2)
+		$ok = ($self->read(\$loops, 198) == 198);
+		print "finished reading\n";
 
-			$ok = 1;
-		} else {
+		# It's possible to make a single CRC check for two packets in a
+		# row thanks to the properties of the CRC used
+		my $crc = $self->check_crc($loops);
+		if (!$ok || !$crc)
+		{
+			warn "Reception error (read: $ok, crc_LOOP: $crc), retrying";
 			$attempts -= 1;
-			warn "Reception error, retrying";
+			$ok = 0;
 		}
 	}
 
 	if ($attempts <= 0) {
 		warn "Impossible to receive the LOOP packets";
 		return undef;
+	} else {
+		print "Loop packets received, parsing on progress...";
 	}
 
-	if (substr($l1, 0, 3) != "LOO" ||
-	    extract(\$l1, "C", 4, 1) != 0 ||
-	    substr($l1, 95, 2) != "\n\r") {
-		warn "LOOP 1 packet ill-formatted";
-		return undef;
+	# The reception went well, now, let's have a look to the packet
+	$ok = 1;
+	if (extract(\$loops, "A3", 0, 3) ne "LOO") {
+		warn "LOOP packet doesn't start with 'LOO' as expected";
+		$ok = 0;
 	}
-	if (substr($l2, 0, 3) != "LOO" ||
-	    extract(\$l2, "C", 4, 1) != 1 ||
-	    substr($l2, 95, 2) != "\n\r") {
-		warn "LOOP 2 packet ill-formatted";
+	if (extract(\$loops, "C", 4, 1) != 0) {
+		warn "Not a LOOP 1 packet";
+		$ok = 0;
+	}
+	if (!$ok) {
 		return undef;
 	}
 
 	# Parse LOOP 1
-	$data{'Bar Trend'} = extract(\$l1, "C", 3, 1);
-	$data{'Barometer'} = extract(\$l1, "v", 7, 2);
-	$data{'Inside Temperature'} = extract(\$l1, "v", 9, 2);
-	$data{'Inside Humidity'} = extract(\$l1, "C", 11, 1);
-	$data{'Outside Temperature'} = extract(\$l1, "v", 12, 2);
-	$data{'Wind Speed'} = extract(\$l1, "C", 14, 1);
-	$data{'10 Min Avg Wind Speed'} = extract(\$l1, "C", 15, 1);
-	$data{'Wind Direction'} = extract(\$l1, "v", 16, 2);
+	$data{'Bar Trend'} = extract(\$loops, "C", 3, 1);
+	$data{'Barometer'} = extract(\$loops, "v", 7, 2);
+	$data{'Inside Temperature'} = extract(\$loops, "v", 9, 2);
+	$data{'Inside Humidity'} = extract(\$loops, "C", 11, 1);
+	$data{'Outside Temperature'} = extract(\$loops, "v", 12, 2);
+	$data{'Wind Speed'} = extract(\$loops, "C", 14, 1);
+	$data{'10 Min Avg Wind Speed'} = extract(\$loops, "C", 15, 1);
+	$data{'Wind Direction'} = extract(\$loops, "v", 16, 2);
 	$data{'Extra Temperature'} = [
-		extract(\$l1, "C", 18, 1),
-		extract(\$l1, "C", 19, 1),
-		extract(\$l1, "C", 20, 1),
-		extract(\$l1, "C", 21, 1),
-		extract(\$l1, "C", 22, 1),
-		extract(\$l1, "C", 23, 1),
-		extract(\$l1, "C", 24, 1)
+		extract(\$loops, "C", 18, 1),
+		extract(\$loops, "C", 19, 1),
+		extract(\$loops, "C", 20, 1),
+		extract(\$loops, "C", 21, 1),
+		extract(\$loops, "C", 22, 1),
+		extract(\$loops, "C", 23, 1),
+		extract(\$loops, "C", 24, 1)
 	];
 	$data{'Soil Temperature'} = [
-		extract(\$l1, "C", 25, 1),
-		extract(\$l1, "C", 26, 1),
-		extract(\$l1, "C", 27, 1),
-		extract(\$l1, "C", 28, 1)
+		extract(\$loops, "C", 25, 1),
+		extract(\$loops, "C", 26, 1),
+		extract(\$loops, "C", 27, 1),
+		extract(\$loops, "C", 28, 1)
 	];
 	$data{'Leaf Temperature'} = [
-		extract(\$l1, "C", 29, 1),
-		extract(\$l1, "C", 30, 1),
-		extract(\$l1, "C", 31, 1),
-		extract(\$l1, "C", 32, 1)
+		extract(\$loops, "C", 29, 1),
+		extract(\$loops, "C", 30, 1),
+		extract(\$loops, "C", 31, 1),
+		extract(\$loops, "C", 32, 1)
 	];
-	$data{'Outside Humidity'} = extract(\$l1, "C", 33, 1);
+	$data{'Outside Humidity'} = extract(\$loops, "C", 33, 1);
 	$data{'Extra Humidities'} = [
-		extract(\$l1, "C", 34, 1),
-		extract(\$l1, "C", 35, 1),
-		extract(\$l1, "C", 36, 1),
-		extract(\$l1, "C", 37, 1),
-		extract(\$l1, "C", 38, 1),
-		extract(\$l1, "C", 39, 1),
-		extract(\$l1, "C", 40, 1)
+		extract(\$loops, "C", 34, 1),
+		extract(\$loops, "C", 35, 1),
+		extract(\$loops, "C", 36, 1),
+		extract(\$loops, "C", 37, 1),
+		extract(\$loops, "C", 38, 1),
+		extract(\$loops, "C", 39, 1),
+		extract(\$loops, "C", 40, 1)
 	];
-	$data{'Rain Rate'} = extract(\$l1, "v", 41, 2);
-	$data{'UV'} = extract(\$l1, "C", 43, 1);
-	$data{'Solar Radiation'} = extract(\$l1, "v", 44, 2);
-	$data{'Storm Rain'} = extract(\$l1, "v", 46, 2);
-	$data{'Start Date of current Storm'} = extract(\$l1, "v", 48, 2);
-	$data{'Day Rain'} = extract(\$l1, "v", 50, 2);
-	$data{'Month Rain'} = extract(\$l1, "v", 52, 2);
-	$data{'Year Rain'} = extract(\$l1, "v", 54, 2);
-	$data{'Day ET'} = extract(\$l1, "v", 56, 2);
-	$data{'Month ET'} = extract(\$l1, "v", 58, 2);
-	$data{'Year ET'} = extract(\$l1, "v", 60, 2);
+	$data{'Rain Rate'} = extract(\$loops, "v", 41, 2);
+	$data{'UV'} = extract(\$loops, "C", 43, 1);
+	$data{'Solar Radiation'} = extract(\$loops, "v", 44, 2);
+	$data{'Storm Rain'} = extract(\$loops, "v", 46, 2);
+	$data{'Start Date of current Storm'} = extract(\$loops, "v", 48, 2);
+	$data{'Day Rain'} = extract(\$loops, "v", 50, 2);
+	$data{'Month Rain'} = extract(\$loops, "v", 52, 2);
+	$data{'Year Rain'} = extract(\$loops, "v", 54, 2);
+	$data{'Day ET'} = extract(\$loops, "v", 56, 2);
+	$data{'Month ET'} = extract(\$loops, "v", 58, 2);
+	$data{'Year ET'} = extract(\$loops, "v", 60, 2);
 	$data{'Soil Moistures'} = [
-		extract(\$l1, "C", 62, 1),
-		extract(\$l1, "C", 63, 1),
-		extract(\$l1, "C", 64, 1),
-		extract(\$l1, "C", 65, 1)
+		extract(\$loops, "C", 62, 1),
+		extract(\$loops, "C", 63, 1),
+		extract(\$loops, "C", 64, 1),
+		extract(\$loops, "C", 65, 1)
 	];
 	$data{'Leaf Wetnesses'} = [
-		extract(\$l1, "C", 66, 1),
-		extract(\$l1, "C", 67, 1),
-		extract(\$l1, "C", 68, 1),
-		extract(\$l1, "C", 69, 1)
+		extract(\$loops, "C", 66, 1),
+		extract(\$loops, "C", 67, 1),
+		extract(\$loops, "C", 68, 1),
+		extract(\$loops, "C", 69, 1)
 	];
-	$data{'Console Battery Voltage'} = extract(\$l1, "v", 87, 2);
-	$data{'Time of Sunrise'} = extract(\$l1, "v", 91, 2);
-	$data{'Time of Sunset'} = extract(\$l1, "v", 93, 2);
+	$data{'Console Battery Voltage'} = extract(\$loops, "v", 87, 2);
+	$data{'Time of Sunrise'} = extract(\$loops, "v", 91, 2);
+	$data{'Time of Sunset'} = extract(\$loops, "v", 93, 2);
 
 	# Parse LOOP 2
 	# Only extract fields different from LOOP1
-	$data{'10-Min Avg Wind Speed'} = extract(\$l2, "v", 18, 2);
-	$data{'2-Min Avg Wind Speed'} = extract(\$l2, "v", 20, 2);
-	$data{'10-Min Wind Gust'} = extract(\$l2, "v", 22, 2);
-	$data{'Wind Direction for the 10-Min Wind Gust'} = extract(\$l2, "v", 24, 2);
-	$data{'Dew Point'} = extract(\$l2, "v", 30, 2);
-	$data{'Heat Index'} = extract(\$l2, "v", 35, 2);
-	$data{'Wind Chill'} = extract(\$l2, "v", 37, 2);
-	$data{'THSW Index'} = extract(\$l2, "v", 39, 2);
-	$data{'Last 15-min Rain'} = extract(\$l2, "v", 52, 2);
-	$data{'Last Hour Rain'} = extract(\$l2, "v", 54, 2);
-	$data{'Last 24-Hour Rain'} = extract(\$l2, "v", 58, 2);
+	$data{'10-Min Avg Wind Speed'} = extract(\$loops, "v", 98 + 18, 2);
+	$data{'2-Min Avg Wind Speed'} = extract(\$loops, "v", 98 + 20, 2);
+	$data{'10-Min Wind Gust'} = extract(\$loops, "v", 98 + 22, 2);
+	$data{'Wind Direction for the 10-Min Wind Gust'} = extract(\$loops, "v", 98 + 24, 2);
+	$data{'Dew Point'} = extract(\$loops, "v", 98 + 30, 2);
+	$data{'Heat Index'} = extract(\$loops, "v", 98 + 35, 2);
+	$data{'Wind Chill'} = extract(\$loops, "v", 98 + 37, 2);
+	$data{'THSW Index'} = extract(\$loops, "v", 98 + 39, 2);
+	$data{'Last 15-min Rain'} = extract(\$loops, "v", 98 + 52, 2);
+	$data{'Last Hour Rain'} = extract(\$loops, "v", 98 + 54, 2);
+	$data{'Last 24-Hour Rain'} = extract(\$loops, "v", 98 + 58, 2);
 
 	return \%data;
 }

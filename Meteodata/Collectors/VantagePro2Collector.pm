@@ -219,7 +219,7 @@ sub extract {
 	my $offset = shift;
 	my $length = shift;
 
-	return unpack($packer, substr($$answer, $offset, $length));
+	return unpack("x$offset$packer", $$answer);
 }
 
 sub write {

@@ -225,10 +225,17 @@ sub extract {
 sub write {
 	my $self = shift;
 	my $msg = shift;
+	my $wait_for_ack = shift;
 
 	my $fh = $self->console;
 
 	print $fh "$msg\n";
+	if ($wait_for_ack) {
+		print "Waiting for acknowledgement\n";
+		my $discard;
+		$self->read(\$discard, 1);
+		print "Acknowledgment: ",extract(\$discard, "C", 0, 1),"\n";
+	}
 }
 
 sub wake_up {

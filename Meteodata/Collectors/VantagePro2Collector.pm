@@ -17,6 +17,8 @@ package Meteodata::Collectors::VantagePro2Collector;
 
 use v5.20;
 use Moo;
+use Meteodata::Converters::UnitConverter qw/inHg_to_bar mph_to_mps
+					    in_to_mm degreesF_to_C/;
 
 has console => (
 	is => 'ro',
@@ -140,7 +142,6 @@ sub getOneLoop {
 	$data{'Inside Humidity'} = extract(\$loops, "C", 11, 1);
 	$data{'Outside Temperature'} = extract(\$loops, "v", 12, 2);
 	$data{'Wind Speed'} = extract(\$loops, "C", 14, 1);
-	$data{'10 Min Avg Wind Speed'} = extract(\$loops, "C", 15, 1);
 	$data{'Wind Direction'} = extract(\$loops, "v", 16, 2);
 	$data{'Extra Temperature'} = [
 		extract(\$loops, "C", 18, 1),
@@ -202,6 +203,8 @@ sub getOneLoop {
 
 	# Parse LOOP 2
 	# Only extract fields different from LOOP1
+	# We take the 10-Min Avg Wind Speed from here because we have higher
+	# resolution than in LOOP 1
 	$data{'10-Min Avg Wind Speed'} = extract(\$loops, "v", 98 + 18, 2);
 	$data{'2-Min Avg Wind Speed'} = extract(\$loops, "v", 98 + 20, 2);
 	$data{'10-Min Wind Gust'} = extract(\$loops, "v", 98 + 22, 2);
@@ -216,6 +219,245 @@ sub getOneLoop {
 
 	return \%data;
 }
+
+sub convert_data {
+	my ($self, $data) = @_;
+
+	# Barometer trend (LOOP 1, offset 4)
+	if ($data->{'Bar Trend'} == 196) {
+		$data->{'Bar Trend'} = "Falling rapidly";
+	} elsif ($data->{'Bar Trend'} == 236) {
+		$data->{'Bar Trend'} = "Falling slowly";
+	} elsif ($data->{'Bar Trend'} == 0) {
+		$data->{'Steady'} = "Steady";
+	} elsif ($data->{'Bar Trend'} == 20) {
+		$data->{'Bar Trend'} = "Raising slowly";
+	} elsif ($data->{'Bar Trend'} == 60) {
+		$data->{'Bar Trend'} = "Raising rapidly";
+	} else {
+		$data->{'Bar Trend'} = undef;
+	}
+
+	# Current barometer value (LOOP 1, offset 7)
+	if ($data->{'Barometer'} > 20 && $data->{'Barometer'} < 32.5) {
+	    $data->{'Barometer'} = inHg_to_bar($data->{'Barometer'}) * 1000;
+	} else {
+	    $data->{'Barometer'} = undef;
+	}
+
+	# Inside temperature (LOOP 1, offset 11)
+	$data->{'Inside Temperature'} = degreesF_to_C($data->{'Inside Temperature'});
+
+	# Inside humidity (LOOP 1, offset 12)
+	# Already OK: in %
+
+	# Outside temperature (LOOP 1, offset 12)
+	if ($data->{'Outside Temperature'} != 255) {
+		$data->{'Outside Temperature'} = degreesF_to_C($data->{'Outside Temperature'});
+        } else {
+		$data->{'Outside Temperature'} = undef;
+	}
+
+	# Wind speed (LOOP 1, offset 14)
+	$data->{'Wind Speed'} = mph_to_mps($data->{'Wind Speed'});
+
+	# Wind direction (LOOP 1, offset 16)
+	# Already OK; in °
+
+	# Extra temperatures (LOOP 1, offset 18)
+	@{$data->{'Extra Temperatures'}} =
+		map {
+			if ($_!=255) {
+				degreesF_to_C($_ - 90);
+			} else {
+				undef;
+			}
+		}  @{$data->{'Extra Temperatures'}};
+
+	# Soil temperatures (LOOP 1, offset 25)
+	@{$data->{'Soil Temperatures'}} =
+		map {
+			if ($_!=255) {
+				degreesF_to_C($_ - 90);
+			} else {
+				undef;
+			}
+		}  @{$data->{'Soil Temperatures'}};
+
+	# Leaf temperatures (LOOP 1, offset 29)
+	@{$data->{'Leaf Temperatures'}} =
+		map {
+			if ($_!=255) {
+				degreesF_to_C($_ - 90);
+			} else {
+				undef;
+			}
+		}  @{$data->{'Leaf Temperatures'}};
+
+	# Outside humidity (LOOP 1, offset 33)
+	# Already OK: in %
+
+	# Extra humidities (LOOP 1, offset 34)
+	# Already OK: in %
+
+	# Rain rate (LOOP 1, offset 41)
+	# ASSUMING THE RAW VALUE IS IN 0.2mm/hour
+	$data->{'Rain Rate'} = $data->{'Rain Rate'} * 0.2;
+
+	# UV index (LOOP 1, offset 43)
+	# Already OK: in usual, meteological, unit
+	if ($data->{'UV'} == 255) {
+		$data->{'UV'} = undef;
+	}
+
+	# Solar radiation (LOOP 1, offset 44)
+	# Already OK: in watt/m^3
+	if ($data->{'Solar Radiation'} == 32767) {
+		$data->{'Solar Radiation'} = undef;
+	}
+
+	# Storm rain (LOOP 1, offset 46)
+	$data->{'Storm Rain'} = in_to_mm($data->{'Storm Rain'}*100);
+
+	# Start Date of current Storm (LOOP 1, offset 48)
+	{
+	my $day = vec($data->{'Start Date of current Storm'},7,5);
+	my $month = vec($data->{'Start Date of current Storm'},12,3);
+	# the year should be interpreted as a signed character
+	# for offsetting with 2000 but we have quite good reasons not to
+	# expect future storms to begin before year 2000
+	my $year = vec($data->{'Start Date of current Storm'},0,7) + 2000;
+
+	if ($day > 0 && $day <= 31 &&
+	    $month >= 1 && $month <= 12) {
+		$data->{'Start Date of current Storm'} = "$year-$month-$day";
+	} else {
+		$data->{'Start Date of current Storm'} = undef;
+	}
+	}
+
+	# Day rain (LOOP 1, offset 50)
+	$data->{'Day Rain'} = $data->{'Day Rain'} * 0.2;
+
+	# Month rain (LOOP 1, offset 52)
+	$data->{'Month Rain'} = $data->{'Month Rain'} * 0.2;
+
+	# Year rain (LOOP 1, offset 54)
+	$data->{'Year Rain'} = $data->{'Year Rain'} * 0.2;
+
+	# Day ET (LOOP 1, offset 56) in 1000th of an inch
+	$data->{'Day ET'} = in_to_mm($data->{'Day ET'}*1000);
+
+	# Month ET (LOOP 1, offset 58) in 100th of an inch
+	$data->{'Month ET'} = in_to_mm($data->{'Month ET'}*100);
+
+	# Year ET (LOOP 1, offset 60) in 100th of an inch
+	$data->{'Year ET'} = in_to_mm($data->{'Year ET'}*100);
+
+	# Soil moistures (LOOP 1, offset 62)
+	@{$data->{'Soil Moistures'}} =
+		map {
+			if ($_!=255) {
+				$_; #TODO check the unit here, centibar??
+			} else {
+				undef;
+			}
+		}  @{$data->{'Soil Moistures'}};
+
+	# Leaf wetnesses (LOOP 1, offset 66) in custom scale from 0 to 15
+	@{$data->{'Leaf Wetnesses'}} =
+		map {
+			if ($_>=0 && $_<=15) {
+				$_;
+			} else {
+				undef;
+			}
+		}  @{$data->{'Leaf Wetnesses'}};
+
+	# Console battery voltage (LOOP 1, offset 87)
+	$data->{'Console Battery Voltage'} =
+		(($data->{'Console Battery Voltage'} * 300) / 512) / 100.0;
+
+	# Time of Sunrise (LOOP 1, offset 91)
+	if ($data->{'Time of Sunrise'} != 32767) {
+		my $hour = $data->{'Time of Sunrise'} / 100;
+		my $min = $data->{'Time of Sunrise'} % 100;
+		$data->{'Time of Sunrise'} = "$hour:$min";
+	} else {
+		$data->{'Time of Sunrise'} = undef;
+	}
+
+	# Time of Sunrise (LOOP 1, offset 93)
+	if ($data->{'Time of Sunrise'} != 32767) {
+		my $hour = $data->{'Time of Sunrise'} / 100;
+		my $min = $data->{'Time of Sunrise'} % 100;
+		$data->{'Time of Sunrise'} = "$hour:$min";
+	} else {
+		$data->{'Time of Sunrise'} = undef;
+	}
+
+	# Last 10 minutes average wind speed (LOOP 2, offset 18)
+	if ($data->{'10-Min Avg Wind Speed'} != 32767) {
+		$data->{'10-Min Avg Wind Speed'} = mph_to_mps($data->{'10-Min Avg Wind Speed'} * 10);
+	} else {
+		$data->{'10-Min Avg Wind Speed'} = undef;
+	}
+
+	# Last 2 minutes average wind speed (LOOP 2, offset 20)
+	if ($data->{'2-Min Avg Wind Speed'} != 32767) {
+		$data->{'2-Min Avg Wind Speed'} = mph_to_mps($data->{'2-Min Avg Wind Speed'} * 10);
+	} else {
+		$data->{'2-Min Avg Wind Speed'} = undef;
+	}
+
+	# Last 10 minutes wind gust (LOOP 2, offset 22)
+	if ($data->{'10-Min Wind Gust'} != 32767) {
+		$data->{'10-Min Wind Gust'} = mph_to_mps($data->{'10-Min Wind Gust'} * 10);
+	} else {
+		$data->{'10-Min Wind Gust'} = undef;
+	}
+
+	# Wind direction for the 10-Min Wind Gust (LOOP 2, offset 24)
+	# Already OK: in °
+
+	# Dew point (LOOP 2, offset 30)
+	if ($data->{'Dew Point'} != 255) {
+		$data->{'Dew Point'} = degreesF_to_C($data->{'Dew Point'});
+	} else {
+		$data->{'Dew Point'} = undef;
+	}
+
+	# Heat index (LOOP 2, offset 35)
+	if ($data->{'Heat Index'} != 255) {
+		$data->{'Heat Index'} = degreesF_to_C($data->{'Heat Index'});
+	} else {
+		$data->{'Heat Index'} = undef;
+	}
+
+	# Wind chill (LOOP 2, offset 37)
+	if ($data->{'Wind Chill'} != 255) {
+		$data->{'Wind Chill'} = degreesF_to_C($data->{'Wind Chill'});
+	} else {
+		$data->{'Wind Chill'} = undef;
+	}
+
+	# THSW index (LOOP 2, offset 39)
+	if ($data->{'THSW Index'} != 255) {
+		$data->{'THSW Index'} = degreesF_to_C($data->{'THSW Index'});
+	} else {
+		$data->{'THSW Index'} = undef;
+	}
+
+	# Last 15 minutes rain (LOOP 2, offset 52)
+	$data->{'Last 15-min Rain'} = $data->{'Last 15-min Rain'}*0.2;
+
+	# Last hour rain (LOOP 2, offset 54)
+	$data->{'Last Hour Rain'} = $data->{'Last Hour Rain'}*0.2;
+
+	# Last 24 hours rain (LOOP 2, offset 56)
+	$data->{'Last 24-Hour Rain'} = $data->{'Last 24-Hour Rain'}*0.2;
+}
+
 
 sub extract {
 	my $answer = shift;

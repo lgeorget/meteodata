@@ -17,7 +17,7 @@ package Meteodata::Collectors::VantagePro2Collector;
 
 use v5.20;
 use Moo;
-use Meteodata::Converters::UnitConverter qw/inHg_to_bar mph_to_mps
+use Meteodata::Converters::UnitConverter qw/inHg_to_bar mph_to_kph
 					    in_to_mm degreesF_to_C/;
 
 has console => (
@@ -259,7 +259,7 @@ sub convert_data {
 	}
 
 	# Wind speed (LOOP 1, offset 14)
-	$data->{'Wind Speed'} = mph_to_mps($data->{'Wind Speed'});
+	$data->{'Wind Speed'} = mph_to_kph($data->{'Wind Speed'});
 
 	# Wind direction (LOOP 1, offset 16)
 	# Already OK; in °
@@ -398,21 +398,21 @@ sub convert_data {
 
 	# Last 10 minutes average wind speed (LOOP 2, offset 18)
 	if ($data->{'10-Min Avg Wind Speed'} != 32767) {
-		$data->{'10-Min Avg Wind Speed'} = mph_to_mps($data->{'10-Min Avg Wind Speed'} * 10);
+		$data->{'10-Min Avg Wind Speed'} = mph_to_kph($data->{'10-Min Avg Wind Speed'} * 10);
 	} else {
 		$data->{'10-Min Avg Wind Speed'} = undef;
 	}
 
 	# Last 2 minutes average wind speed (LOOP 2, offset 20)
 	if ($data->{'2-Min Avg Wind Speed'} != 32767) {
-		$data->{'2-Min Avg Wind Speed'} = mph_to_mps($data->{'2-Min Avg Wind Speed'} * 10);
+		$data->{'2-Min Avg Wind Speed'} = mph_to_kph($data->{'2-Min Avg Wind Speed'} * 10);
 	} else {
 		$data->{'2-Min Avg Wind Speed'} = undef;
 	}
 
 	# Last 10 minutes wind gust (LOOP 2, offset 22)
 	if ($data->{'10-Min Wind Gust'} != 32767) {
-		$data->{'10-Min Wind Gust'} = mph_to_mps($data->{'10-Min Wind Gust'} * 10);
+		$data->{'10-Min Wind Gust'} = mph_to_kph($data->{'10-Min Wind Gust'} * 10);
 	} else {
 		$data->{'10-Min Wind Gust'} = undef;
 	}

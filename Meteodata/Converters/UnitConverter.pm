@@ -17,7 +17,7 @@ package Meteodata::Converters::UnitConverter;
 
 use Exporter;
 
-@EXPORT_OK = qw/inHg_to_bar degreesF_to_C mph_to_mps in_to_mm/;
+@EXPORT_OK = qw/inHg_to_bar degreesF_to_C mph_to_mps mph_to_kph in_to_mm/;
 
 sub inHg_to_bar {
 	# inches of mercury to bar
@@ -32,6 +32,11 @@ sub degreesF_to_C {
 sub mph_to_mps {
 	# miles per hour to meters per second
 	return $_[0] * 0.44704;
+}
+
+sub mph_to_kph {
+	# miles per hour to kilometers per hour
+	return $_[0] * 1.609;
 }
 
 sub in_to_mm {

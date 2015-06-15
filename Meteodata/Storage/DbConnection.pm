@@ -16,7 +16,7 @@
 package Meteodata::Storage::DbConnection;
 
 use Moo;
-use DBI;
+use perlcassa;
 
 has 'table' => (
 	is => 'ro'
@@ -31,12 +31,16 @@ has 'keyspace' => (
 	is => 'ro',
 );
 
+has 'db' => (
+	is => 'ro',
+);
+
 sub connect {
 	my $self = shift;
 	my $passwd = shift;
-	$db = DBI->connect("dbi:Cassandra:host=$self->host:keyspace=$self->keyspace",
+	$self->db = DBI->connect("dbi:Cassandra:host=$self->host:keyspace=$self->keyspace",
 				$self->user,$passwd,{ 'RaiseError' => 1 });
-	return defined($db);
+	return defined($self->db);
 }
 
 sub disconnect {
@@ -47,11 +51,6 @@ sub disconnect {
 sub DEMOLISH {
 	my $self = shift;
 	$self->disconnect;
-}
-
-sub add_new_data {
-	my ($self,$id,$data) = @_;
-	# ...
 }
 
 1;

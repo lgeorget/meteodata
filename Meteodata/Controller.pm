@@ -15,8 +15,41 @@
 
 package Meteodata::Controller;
 
-use Moo;
-use DBI;
+use Proc::Daemon;
+
+$Meteodata::Controller::stations = 0;
+$Meteodata::Controller::continue = 1;
+$Meteodata::Controller::db;
+
+$SIG{INT} = $SIG{TERM} = \&signalStopHandler;
+$SIG{PIPE} = 'ignore';
+$SIG{HUP} = \&reconfigure;
+
+sub signalStopHandler() {
+	$continue = 1;
+	# Connection to the database is closed automatically
+}
+
+sub connectToDb() {
+	$Meteodata::Controller::db = Meteodata::Storage::DbConnector->new({});
+}
+
+sub reconfigure() {
+	# handle reparsing the configuration
+	# connect to database
+	# discover the weather stations
+	# reschedule the weather stations polling
+}
+
+# Initializations
+reconfigure();
+
+## Ready!
+
+# Event loop
+while ($continue) {
+
+}
 
 
 1;

@@ -15,18 +15,49 @@
 
 package Meteodata::Controller;
 
+use strict;
+use warnings;
+
 use Proc::Daemon;
+use Config::Simple;
+use Getopt::Long;
 
 $Meteodata::Controller::stations = 0;
 $Meteodata::Controller::continue = 1;
-$Meteodata::Controller::db;
 
 $SIG{INT} = $SIG{TERM} = \&signalStopHandler;
 $SIG{PIPE} = 'ignore';
 $SIG{HUP} = \&reconfigure;
 
+$Meteodata::Controller::config_file = "config"; #TODO change this, autoconf placeholder?
+GetOptions("config=s" => \$Meteodata::Controller::config_file);
+$Meteodata::Controller::config = new Config::Simple($Meteodata::Controller::config_file);
+
+sub validateConfiguration() {
+	our $cfg = $Meteodata::Controller::config;
+	my $die;
+	if (!defined $cfg->param('storage.host')) {
+		$die = "Configuration variable 'host' undefined for database
+		connection\n";
+	} elsif (!defined $cfg->param('storage.keyspace')) {
+		$die = $die ."Configuration variable 'keyspace' undefined for
+		database connection\n";
+	} elsif (!defined $cfg->param('storage.user')) {
+		$die = $die . "Configuration variable 'user' undefined for
+		database connection\n";
+	} elsif (!defined $cfg->param('storage.passwd')) {
+		print "Configuration variable 'passwd' for database
+		connection not found in the configuration variable\n";
+	}
+
+	if (defined $die) {
+		print $die;
+		die "Incomplete configuration -- exiting";
+	}
+}
+
 sub signalStopHandler() {
-	$continue = 1;
+	$Meteodata::Controller::continue = 1;
 	# Connection to the database is closed automatically
 }
 
@@ -35,6 +66,7 @@ sub connectToDb() {
 }
 
 sub reconfigure() {
+	# 
 	# handle reparsing the configuration
 	# connect to database
 	# discover the weather stations
@@ -47,7 +79,7 @@ reconfigure();
 ## Ready!
 
 # Event loop
-while ($continue) {
+while ($Meteodata::Controller::continue) {
 
 }
 

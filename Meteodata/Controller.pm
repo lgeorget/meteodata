@@ -22,7 +22,7 @@ use Proc::Daemon;
 use Config::Simple;
 use Getopt::Long;
 
-$Meteodata::Controller::stations = 0;
+$Meteodata::Controller::stations = undef;
 $Meteodata::Controller::continue = 1;
 
 $SIG{INT} = $SIG{TERM} = \&signalStopHandler;
@@ -33,7 +33,7 @@ $Meteodata::Controller::config_file = "config"; #TODO change this, autoconf plac
 GetOptions("config=s" => \$Meteodata::Controller::config_file);
 $Meteodata::Controller::config = new Config::Simple($Meteodata::Controller::config_file);
 
-sub validateConfiguration() {
+sub validateConfiguration {
 	our $cfg = $Meteodata::Controller::config;
 	my $die;
 	if (!defined $cfg->param('storage.host')) {
@@ -56,21 +56,25 @@ sub validateConfiguration() {
 	}
 }
 
-sub signalStopHandler() {
-	$Meteodata::Controller::continue = 1;
+sub signalStopHandler {
+	$Meteodata::Controller::continue = 0;
 	# Connection to the database is closed automatically
 }
 
-sub connectToDb() {
+sub connectToDb {
 	$Meteodata::Controller::db = Meteodata::Storage::DbConnector->new({});
 }
 
-sub reconfigure() {
-	# 
+sub reconfigure {
+	our $db = $Meteodata::Controller::db;
+	our $stations = $Meteodata::Controller::stations;
+	#
 	# handle reparsing the configuration
 	# connect to database
 	# discover the weather stations
+	$stations = $db->discover_stations();
 	# reschedule the weather stations polling
+	# spawn a process for each station
 }
 
 # Initializations

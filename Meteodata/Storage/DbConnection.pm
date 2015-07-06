@@ -34,9 +34,9 @@ has 'keyspace' => (
 sub connect {
 	my $self = shift;
 	my $passwd = shift;
-	$db = DBI->connect("dbi:Cassandra:host=$self->host:keyspace=$self->keyspace",
+	$self->db = DBI->connect("dbi:Cassandra:host=$self->host:keyspace=$self->keyspace",
 				$self->user,$passwd,{ 'RaiseError' => 1 });
-	return defined($db);
+	return defined($self->db);
 }
 
 sub disconnect {
@@ -52,6 +52,13 @@ sub DEMOLISH {
 sub add_new_data {
 	my ($self,$id,$data) = @_;
 	# ...
+}
+
+sub discover_stations {
+	my $self = shift;
+	my $stations = $self->db->selectall_arrayref("SELECT id,address,port,polling_period FROM stations");
+	print "Discovered " . scalar(@$stations) . " stations";
+	return $stations;
 }
 
 1;

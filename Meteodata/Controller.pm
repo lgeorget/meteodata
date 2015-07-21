@@ -21,9 +21,11 @@ use warnings;
 use Proc::Daemon;
 use Config::Simple;
 use Getopt::Long;
+use Meteodata::Poller;
 
 $Meteodata::Controller::stations = undef;
 $Meteodata::Controller::continue = 1;
+%Meteodata::Controller::pollers;
 
 $SIG{INT} = $SIG{TERM} = \&signalStopHandler;
 $SIG{PIPE} = 'ignore';
@@ -68,13 +70,31 @@ sub connectToDb {
 sub reconfigure {
 	our $db = $Meteodata::Controller::db;
 	our $stations = $Meteodata::Controller::stations;
-	#
+	our %pollers = %Meteodata::Controller::pollers;
+
 	# handle reparsing the configuration
+	validateConfiguration();
+
 	# connect to database
+	connectToDb();
+
 	# discover the weather stations
 	$stations = $db->discover_stations();
-	# reschedule the weather stations polling
+
 	# spawn a process for each station
+	foreach my $new_station ($stations) {
+	    my $pid = fork();
+	    if ($pid == undef) {
+	       warn "Could not fork one of the pollers";
+	    } elsif ($pid == 0) { #child
+	       Meteodata::Poller::launch_poller($db, $new_station);
+		# doesn't return
+	    } else { # parent
+	       $pollers{$pid} = $new_station;
+	       sleep 15; # wait a little between each poller spawning
+	       # now, spawn the next child
+	    }
+	}
 }
 
 # Initializations
@@ -84,7 +104,28 @@ reconfigure();
 
 # Event loop
 while ($Meteodata::Controller::continue) {
+  my $pid = wait();
 
+  if ($pid == -1) {
+      print "No pollers running, existing";
+      $Meteodata::Controller::continue = 0;
+      continue;
+  }
+
+  if (!exists $Meteodata::Controller::pollers{$pid}) {
+      # WTF has just died o_O
+      continue;
+  }
+
+  # revive the poller
+  my $revived_poller_pid = fork();
+  if ($revived_poller_pid == undef) {
+      warn "Could not fork one of the pollers";
+  } elsif ($revived_poller_pid == 0) { #child
+      Meteodata::Poller::launch_poller($Meteodata::Controller::db,
+                                       $Meteodata::Controller::pollers{$pid});
+      # doesn't return
+  } # else parent, nothing to do
 }
 
 

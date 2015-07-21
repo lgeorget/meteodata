@@ -67,7 +67,7 @@ sub poll_station {
 		PeerPort => $Meteodata::Poller::station_port,
 		Proto => 'tcp',
 	);
-		
+
 	unless ($socket->connected) {
 		print "Could not reach station " . $Meteodata::Poller::station_id;
 		return undef;

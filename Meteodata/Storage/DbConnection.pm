@@ -18,6 +18,8 @@ package Meteodata::Storage::DbConnection;
 use Moo;
 use DBI;
 
+$Meteodata::Storage::db = undef;
+
 has 'table' => (
 	is => 'ro'
 );
@@ -34,9 +36,9 @@ has 'keyspace' => (
 sub connect {
 	my $self = shift;
 	my $passwd = shift;
-	$self->db = DBI->connect("dbi:Cassandra:host=$self->host:keyspace=$self->keyspace",
-				$self->user,$passwd,{ 'RaiseError' => 1 });
-	return defined($self->db);
+	$Meteodata::Storage::db = DBI->connect("dbi:Cassandra:host=".$self->host.";keyspace=".
+	                         $self->keyspace,$self->user,$passwd,{ 'RaiseError' => 1 });
+	return defined($Meteodata::Storage::db);
 }
 
 sub disconnect {
@@ -56,7 +58,7 @@ sub add_new_data {
 
 sub discover_stations {
 	my $self = shift;
-	my $stations = $self->db->selectall_arrayref("SELECT id,address,port,polling_period FROM stations");
+	my $stations = $Meteodata::Storage::db->selectall_arrayref("SELECT id,address,port,polling_period FROM stations");
 	print "Discovered " . scalar(@$stations) . " stations";
 	return $stations;
 }

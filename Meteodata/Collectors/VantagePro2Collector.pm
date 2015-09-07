@@ -229,7 +229,7 @@ sub convert_data {
 	} elsif ($data->{'Bar Trend'} == 236) {
 		$data->{'Bar Trend'} = "Falling slowly";
 	} elsif ($data->{'Bar Trend'} == 0) {
-		$data->{'Steady'} = "Steady";
+		$data->{'Bar Trend'} = "Steady";
 	} elsif ($data->{'Bar Trend'} == 20) {
 		$data->{'Bar Trend'} = "Raising slowly";
 	} elsif ($data->{'Bar Trend'} == 60) {
@@ -245,15 +245,15 @@ sub convert_data {
 	    $data->{'Barometer'} = undef;
 	}
 
-	# Inside temperature (LOOP 1, offset 11)
-	$data->{'Inside Temperature'} = degreesF_to_C($data->{'Inside Temperature'});
+	# Inside temperature (LOOP 1, offset 9)
+	$data->{'Inside Temperature'} = degreesF_to_C($data->{'Inside Temperature'}/10);
 
-	# Inside humidity (LOOP 1, offset 12)
+	# Inside humidity (LOOP 1, offset 11)
 	# Already OK: in %
 
 	# Outside temperature (LOOP 1, offset 12)
 	if ($data->{'Outside Temperature'} != 255) {
-		$data->{'Outside Temperature'} = degreesF_to_C($data->{'Outside Temperature'});
+		$data->{'Outside Temperature'} = degreesF_to_C($data->{'Outside Temperature'}/10);
         } else {
 		$data->{'Outside Temperature'} = undef;
 	}
@@ -321,19 +321,19 @@ sub convert_data {
 
 	# Start Date of current Storm (LOOP 1, offset 48)
 	{
-	my $day = vec($data->{'Start Date of current Storm'},7,5);
-	my $month = vec($data->{'Start Date of current Storm'},12,3);
-	# the year should be interpreted as a signed character
-	# for offsetting with 2000 but we have quite good reasons not to
-	# expect future storms to begin before year 2000
-	my $year = vec($data->{'Start Date of current Storm'},0,7) + 2000;
+		my $date = unpack("b*", $data->{'Start Date of current Storm'});
+		my ($year,$month,$day) = pack("b7b5b3",$date);
+		# the year should be interpreted as a signed character
+		# for offsetting with 2000 but we have quite good reasons not to
+		# expect future storms to begin before year 2000
+		$year += 2000;
 
-	if ($day > 0 && $day <= 31 &&
-	    $month >= 1 && $month <= 12) {
-		$data->{'Start Date of current Storm'} = "$year-$month-$day";
-	} else {
-		$data->{'Start Date of current Storm'} = undef;
-	}
+		if ($day > 0 && $day <= 31 &&
+		    $month >= 1 && $month <= 12) {
+			$data->{'Start Date of current Storm'} = "$year-$month-$day";
+		} else {
+			$data->{'Start Date of current Storm'} = undef;
+		}
 	}
 
 	# Day rain (LOOP 1, offset 50)
@@ -387,13 +387,13 @@ sub convert_data {
 		$data->{'Time of Sunrise'} = undef;
 	}
 
-	# Time of Sunrise (LOOP 1, offset 93)
-	if ($data->{'Time of Sunrise'} != 32767) {
-		my $hour = $data->{'Time of Sunrise'} / 100;
-		my $min = $data->{'Time of Sunrise'} % 100;
-		$data->{'Time of Sunrise'} = "$hour:$min";
+	# Time of Sunet (LOOP 1, offset 93)
+	if ($data->{'Time of Sunset'} != 32767) {
+		my $hour = $data->{'Time of Sunset'} / 100;
+		my $min = $data->{'Time of Sunset'} % 100;
+		$data->{'Time of Sunset'} = "$hour:$min";
 	} else {
-		$data->{'Time of Sunrise'} = undef;
+		$data->{'Time of Sunset'} = undef;
 	}
 
 	# Last 10 minutes average wind speed (LOOP 2, offset 18)

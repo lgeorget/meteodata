@@ -16,9 +16,13 @@
 package Meteodata::Storage::DbConnection;
 
 use Moo;
-use DBI;
+use IO::Async::Loop;
+use Net::Async::CassandraCQL;
+use Protocol::CassandraCQL qw( CONSISTENCY_QUORUM );
+
 
 $Meteodata::Storage::db = undef;
+$Meteodata::Storage::loop = undef;
 
 has 'table' => (
 	is => 'ro'
@@ -36,14 +40,23 @@ has 'keyspace' => (
 sub connect {
 	my $self = shift;
 	my $passwd = shift;
-	$Meteodata::Storage::db = DBI->connect("dbi:Cassandra:host=".$self->host.";keyspace=".
-	                         $self->keyspace,$self->user,$passwd,{ 'RaiseError' => 1 });
+ 	$Meteodata::Storage::loop = IO::Async::Loop->new;
+	$Meteodata::Storage::db = Net::Async::CassandraCQL->new(
+		host => $self->host,
+		keyspace => $self->keyspace,
+		username => $self->user,
+		password => $passwd,
+		default_consistency => CONSISTENCY_QUORUM,
+	);
+	$Meteodata::Storage::loop->add($Meteodata::Storage::db);
+ 	$Meteodata::Storage::db->connect->get;
 	return defined($Meteodata::Storage::db);
 }
 
 sub disconnect {
 	my $self = shift;
-	$self->db->disconnect;
+	my $future = Future->new;
+	$Meteodata::Storage::db->close_when_idle;
 }
 
 sub DEMOLISH {
@@ -53,14 +66,17 @@ sub DEMOLISH {
 
 sub add_new_data {
 	my ($self,$id,$data) = @_;
-	# ...
+	my $put_stmt = $Meteodata::Storage::db->query("INSERT INTO data_$id (...) VALUES (...)")->get;
+	my ($type, $result) = $put_stmt->execute($data);
 }
 
 sub discover_stations {
 	my $self = shift;
-	my $stations = $Meteodata::Storage::db->selectall_arrayref("SELECT id,address,port,polling_period FROM stations");
-	print "Discovered " . scalar(@$stations) . " stations";
-	return $stations;
+	my $sth = $Meteodata::Storage::db->prepare("SELECT id,address,port,polling_period FROM stations")->get;
+	my ($type, $result) = $sth->execute([])->get;
+	my @stations = $result->rows_array;
+	print "Discovered " . scalar(@stations) . " stations";
+	return \@stations;
 }
 
 1;

@@ -24,7 +24,6 @@
 #
 # For more information, please refer to <http://unlicense.org/>
 
-
 use strict;
 use warnings;
 
@@ -48,6 +47,6 @@ my $controller = Meteodata::Collectors::VantagePro2Collector->new(
 	console => $client,
 );
 
-my $data =  $controller->getOneLoop();
+my $data =  $controller->convert_data($controller->getOneLoop());
 
 print Dumper(%$data);

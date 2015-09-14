@@ -15,7 +15,7 @@
 
 package Meteodata::Converters::UnitConverter;
 
-use Exporter;
+use Exporter 'import';
 
 @EXPORT_OK = qw/inHg_to_bar degreesF_to_C mph_to_mps mph_to_kph in_to_mm/;
 

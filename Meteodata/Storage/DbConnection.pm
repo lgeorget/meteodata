@@ -56,7 +56,7 @@ sub connect {
 sub disconnect {
 	my $self = shift;
 	my $future = Future->new;
-	$Meteodata::Storage::db->close_when_idle;
+	$Meteodata::Storage::db->close_when_idle->get;
 }
 
 sub DEMOLISH {
@@ -66,22 +66,26 @@ sub DEMOLISH {
 
 sub add_new_data {
 	my ($self,$id,$data) = @_;
-	my $now = localtime;
-	my $put_stmt = $Meteodata::Storage::db->query("
+	my $now = time;
+	print "Inserting data in $id at time $now";
+	my $put_stmt = $Meteodata::Storage::db->prepare("
 	INSERT INTO meteo (
-	station,time,Bar_Trend,Barometer,Inside_Temperature,
+	station,time,
+	Bar_Trend,Barometer,
+	Inside_Temperature,Outside_Temperature,
 	Inside_Humidity,Outside_Humidity,
 	Extra_Temperatures_1,Extra_Temperatures_2, Extra_Temperatures_3,
 	Extra_Temperatures_4, Extra_Temperatures_5, Extra_Temperatures_6,
-	Extra_Temperatures_7, Soil_Temperatures_1, Soil_Temperatures_2,
-	Soil_Temperatures_3, Soil_Temperatures_4, Leaf_Temperatures_1,
-	Leaf_Temperatures_2, Leaf_Temperatures_3, Leaf_Temperatures_4,
+	Extra_Temperatures_7, Soil_Temperature_1, Soil_Temperature_2,
+	Soil_Temperature_3, Soil_Temperature_4, Leaf_Temperature_1,
+	Leaf_Temperature_2, Leaf_Temperature_3, Leaf_Temperature_4,
 	Extra_Humidities_1, Extra_Humidities_2, Extra_Humidities_3,
 	Extra_Humidities_4, Extra_Humidities_5, Extra_Humidities_6,
 	Extra_Humidities_7, Soil_Moistures_1, Soil_Moistures_2,
 	Soil_Moistures_3, Soil_Moistures_4, Leaf_Wetnesses_1, Leaf_Wetnesses_2,
 	Leaf_Wetnesses_3, Leaf_Wetnesses_4, Wind_Speed, Wind_Direction,
 	Ten_Min_Avg_Wind_Speed, Two_Min_Avg_Wind_Speed, Ten_Min_Wind_Gust,
+	Wind_Direction_for_the_10_Min_Wind_Gust,
 	Rain_Rate, Last_15_min_Rain, Last_Hour_Rain, Last_24_Hour_Rain,
 	Day_Rain, Month_Rain, Year_Rain, Storm_Rain,
 	Start_Date_of_Current_Storm, UV, Solar_Radiation, Dew_Point,
@@ -90,27 +94,29 @@ sub add_new_data {
 	)
 	VALUES (
 	$id,$now,
-	$data->{'Bar Trend'},$data->{'Barometer'},$data->{'Inside Temperature'},
+	'$data->{'Bar Trend'}',$data->{'Barometer'},
+	$data->{'Inside Temperature'},$data->{'Outside Temperature'},
 	$data->{'Inside Humidity'},$data->{'Outside Humidity'},
-	$data->{'Extra Temperatures'}[1], $data->{'Extra Temperatures'}[2],
-	$data->{'Extra Temperatures'}[3], $data->{'Extra Temperatures'}[4],
-	$data->{'Extra Temperatures'}[5], $data->{'Extra Temperatures'}[6],
-	$data->{'Extra Temperatures'}[7],
-	$data->{'Soil Temperatures'}[1], $data->{'Soil Temperatures'}[2],
-	$data->{'Soil Temperatures'}[3], $data->{'Soil Temperatures'}[4],
-	$data->{'Leaf Temperatures'}[1], $data->{'Leaf Temperatures'}[2],
-	$data->{'Leaf Temperatures'}[3], $data->{'Leaf Temperatures'}[4],
-	$data->{'Extra Humidities'}[1], $data->{'Extra Humidities'}[2],
-	$data->{'Extra Humidities'}[3], $data->{'Extra Humidities'}[4],
-	$data->{'Extra Humidities'}[5], $data->{'Extra Humidities'}[6],
-	$data->{'Extra Humidities'}[7],
-	$data->{'Soil Moistures'}[1], $data->{'Soil Moistures'}[2],
-	$data->{'Soil Moistures'}[3], $data->{'Soil Moistures'}[4],
-	$data->{'Leaf Wetnesses'}[1], $data->{'Leaf Wetnesses'}[2],
-	$data->{'Leaf Wetnesses'}[3], $data->{'Leaf Wetnesses'}[4],
+	$data->{'Extra Temperatures'}[0], $data->{'Extra Temperatures'}[1],
+	$data->{'Extra Temperatures'}[2], $data->{'Extra Temperatures'}[3],
+	$data->{'Extra Temperatures'}[4], $data->{'Extra Temperatures'}[5],
+	$data->{'Extra Temperatures'}[6],
+	$data->{'Soil Temperature'}[0], $data->{'Soil Temperature'}[1],
+	$data->{'Soil Temperature'}[2], $data->{'Soil Temperature'}[3],
+	$data->{'Leaf Temperature'}[0], $data->{'Leaf Temperature'}[1],
+	$data->{'Leaf Temperature'}[2], $data->{'Leaf Temperature'}[3],
+	$data->{'Extra Humidities'}[0], $data->{'Extra Humidities'}[1],
+	$data->{'Extra Humidities'}[2], $data->{'Extra Humidities'}[3],
+	$data->{'Extra Humidities'}[4], $data->{'Extra Humidities'}[5],
+	$data->{'Extra Humidities'}[6],
+	$data->{'Soil Moistures'}[0], $data->{'Soil Moistures'}[1],
+	$data->{'Soil Moistures'}[2], $data->{'Soil Moistures'}[3],
+	$data->{'Leaf Wetnesses'}[0], $data->{'Leaf Wetnesses'}[1],
+	$data->{'Leaf Wetnesses'}[2], $data->{'Leaf Wetnesses'}[3],
 	$data->{'Wind Speed'}, $data->{'Wind Direction'},
 	$data->{'10-Min Avg Wind Speed'}, $data->{'2-Min Avg Wind Speed'},
 	$data->{'10-Min Wind Gust'},
+	$data->{'Wind Direction for the 10-Min Wind Gust'},
 	$data->{'Rain Rate'}, $data->{'Last 15-min Rain'},
 	$data->{'Last Hour Rain'}, $data->{'Last 24-Hour Rain'},
 	$data->{'Day Rain'}, $data->{'Month Rain'}, $data->{'Year Rain'},
@@ -120,8 +126,8 @@ sub add_new_data {
 	$data->{'Day ET'}, $data->{'Month ET'}, $data->{'Year ET'},
 	$data->{'Time Sunrise'}, $data->{'Time Sunset'},
 	$data->{'Console Battery Voltage'}
-	)")->get;
-	my ($type, $result) = $put_stmt->execute($data);
+	)");
+	my ($type, $result) = $put_stmt->get->execute([])->get;
 }
 
 sub discover_stations {

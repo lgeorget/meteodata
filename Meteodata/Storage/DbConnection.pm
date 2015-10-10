@@ -71,7 +71,7 @@ sub add_new_data {
 	my $put_stmt = $Meteodata::Storage::db->prepare("
 	INSERT INTO meteo (
 	station,time,
-	bartrend,barometer,
+	bartrend,barometer,barometer_abs,barometer_raw,
 	insidetemp,outsidetemp,
 	insidehum,outsidehum,
 	extratemp1,extratemp2, extratemp3,
@@ -95,6 +95,7 @@ sub add_new_data {
 	VALUES (
 	$id,$now,
 	'$data->{'Bar Trend'}',$data->{'Barometer'},
+	$data->{'Absolute Barometric Pressure'},$data->{'Barometric Sensor Raw Reading'},
 	$data->{'Inside Temperature'},$data->{'Outside Temperature'},
 	$data->{'Inside Humidity'},$data->{'Outside Humidity'},
 	$data->{'Extra Temperatures'}[0], $data->{'Extra Temperatures'}[1],
@@ -127,6 +128,15 @@ sub add_new_data {
 	$data->{'Day ET'}, $data->{'Month ET'}, $data->{'Year ET'},
 	$data->{'Time Sunrise'}, $data->{'Time Sunset'}
 	)");
+	my ($type, $result) = $put_stmt->get->execute([])->get;
+
+	$put_stmt = $Meteodata::Storage::db->prepare("
+	UPDATE stations SET
+	altimeter_setting = $data->{'Altimeter Setting'},
+	barometer_reduction_method = $data->{'Barometric Reduction Method'},
+	barometric_calibration = $data->{'Barometric calibration number'},
+	barometric_offset = $data->{'User-entered Barometric Offset'}
+	WHERE id = $id");
 	my ($type, $result) = $put_stmt->get->execute([])->get;
 }
 

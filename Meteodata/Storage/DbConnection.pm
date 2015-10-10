@@ -71,26 +71,26 @@ sub add_new_data {
 	my $put_stmt = $Meteodata::Storage::db->prepare("
 	INSERT INTO meteo (
 	station,time,
-	Bar_Trend,Barometer,
-	Inside_Temperature,Outside_Temperature,
-	Inside_Humidity,Outside_Humidity,
-	Extra_Temperatures_1,Extra_Temperatures_2, Extra_Temperatures_3,
-	Extra_Temperatures_4, Extra_Temperatures_5, Extra_Temperatures_6,
-	Extra_Temperatures_7, Soil_Temperature_1, Soil_Temperature_2,
-	Soil_Temperature_3, Soil_Temperature_4, Leaf_Temperature_1,
-	Leaf_Temperature_2, Leaf_Temperature_3, Leaf_Temperature_4,
-	Extra_Humidities_1, Extra_Humidities_2, Extra_Humidities_3,
-	Extra_Humidities_4, Extra_Humidities_5, Extra_Humidities_6,
-	Extra_Humidities_7, Soil_Moistures_1, Soil_Moistures_2,
-	Soil_Moistures_3, Soil_Moistures_4, Leaf_Wetnesses_1, Leaf_Wetnesses_2,
-	Leaf_Wetnesses_3, Leaf_Wetnesses_4, Wind_Speed, Wind_Direction,
-	Ten_Min_Avg_Wind_Speed, Two_Min_Avg_Wind_Speed, Ten_Min_Wind_Gust,
-	Wind_Direction_for_the_10_Min_Wind_Gust,
-	Rain_Rate, Last_15_min_Rain, Last_Hour_Rain, Last_24_Hour_Rain,
-	Day_Rain, Month_Rain, Year_Rain, Storm_Rain,
-	Start_Date_of_Current_Storm, UV, Solar_Radiation, Dew_Point,
-	Heat_Index, Wind_Chill, THSW_Index, Day_ET, Month_ET, Year_ET,
-	Time_Sunrise, Time_Sunset, Console_Battery_Voltage
+	bartrend,barometer,
+	insidetemp,outsidetemp,
+	insidehum,outsidehum,
+	extratemp1,extratemp2, extratemp3,
+	extratemp4, extratemp5, extratemp6,
+	extratemp7, soiltemp1, soiltemp2,
+	soiltemp3, soiltemp4, leaftemp1,
+	leaftemp2, leaftemp3, leaftemp4,
+	extrahum1, extrahum2, extrahum3,
+	extrahum4, extrahum5, extrahum6,
+	extrahum7, soilmoistures1, soilmoistures2,
+	soilmoistures3, soilmoistures4, leafwetnesses1, leafwetnesses2,
+	leafwetnesses3, leafwetnesses4, windspeed, winddir,
+	avgwindspeed_10min, avgwindspeed_2min,
+	windgust_10min, windgustdir,
+	rainrate, rain_15min, rain_1h, rain_24h,
+	dayrain, monthrain, yearrain, stormrain, stormstartdate,
+	UV, solarrad, dewpoint, icepoint, heatindex, windchill, thswindex,
+	dayET, monthET, yearET,
+	sunrise, sunset
 	)
 	VALUES (
 	$id,$now,
@@ -122,10 +122,10 @@ sub add_new_data {
 	$data->{'Day Rain'}, $data->{'Month Rain'}, $data->{'Year Rain'},
 	$data->{'Storm Rain'}, $data->{'Start Date of Current Storm'},
 	$data->{'UV'}, $data->{'Solar Radiation'}, $data->{'Dew Point'},
-	$data->{'Heat Index'}, $data->{'Wind Chill'}, $data->{'THSW Index'},
+	$data->{'Ice Point'}, $data->{'Heat Index'},
+	$data->{'Wind Chill'}, $data->{'THSW Index'},
 	$data->{'Day ET'}, $data->{'Month ET'}, $data->{'Year ET'},
-	$data->{'Time Sunrise'}, $data->{'Time Sunset'},
-	$data->{'Console Battery Voltage'}
+	$data->{'Time Sunrise'}, $data->{'Time Sunset'}
 	)");
 	my ($type, $result) = $put_stmt->get->execute([])->get;
 }

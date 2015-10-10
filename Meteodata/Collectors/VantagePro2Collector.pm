@@ -197,7 +197,9 @@ sub getOneLoop {
 		extract(\$loops, "C", 68, 1),
 		extract(\$loops, "C", 69, 1)
 	];
+	$data{'Transmitter Battery Status'} = extract(\$loops, "C", 86, 1);
 	$data{'Console Battery Voltage'} = extract(\$loops, "v", 87, 2);
+	$data{'Forecast Icons'} = extract(\$loops, "C", 89, 1);
 	$data{'Time of Sunrise'} = extract(\$loops, "v", 91, 2);
 	$data{'Time of Sunset'} = extract(\$loops, "v", 93, 2);
 
@@ -216,6 +218,12 @@ sub getOneLoop {
 	$data{'Last 15-min Rain'} = extract(\$loops, "v", 98 + 52, 2);
 	$data{'Last Hour Rain'} = extract(\$loops, "v", 98 + 54, 2);
 	$data{'Last 24-Hour Rain'} = extract(\$loops, "v", 98 + 58, 2);
+	$data{'Barometric Reduction Method'} = extract(\$loops, "C", 98 + 60, 1);
+	$data{'User-entered Barometric Offset'} = extract(\$loops, "v", 98 + 61, 2);
+	$data{'Barometric calibration number'} = extract(\$loops, "v", 98 + 63, 2);
+	$data{'Barometric Sensor Raw Reading'} = extract(\$loops, "v", 98 + 65, 2);
+	$data{'Absolute Barometric Pressure'} = extract(\$loops, "v", 98 + 67, 2);
+	$data{'Altimeter Setting'} = extract(\$loops, "v", 98 + 69, 2);
 
 	return \%data;
 }
@@ -374,9 +382,37 @@ sub convert_data {
 			}
 		}  @{$data->{'Leaf Wetnesses'}};
 
+	# Transmitter Battery Status (LOOP 1, offset 86)
+	# Already OK #TODO Check what this byte means
+
 	# Console battery voltage (LOOP 1, offset 87)
 	$data->{'Console Battery Voltage'} =
 		(($data->{'Console Battery Voltage'} * 300) / 512) / 100.0;
+
+	# Forecast Icons (LOOP 1, offset 89)
+	# Already OK, but we add a field with the textual interpretation
+	# of this number
+	if ($data->{'Forecast Icons'} == 8) {
+		$data->{'Forecast'} = 'Mostly Clear';
+	} elsif  ($data->{'Forecast Icons'} == 6) {
+		$data->{'Forecast'} = 'Partly Cloudy';
+	} elsif  ($data->{'Forecast Icons'} == 2) {
+		$data->{'Forecast'} = 'Mostly Cloudy';
+	} elsif  ($data->{'Forecast Icons'} == 3) {
+		$data->{'Forecast'} = 'Mostly Cloudy, Rain within 12 hours';
+	} elsif  ($data->{'Forecast Icons'} == 18) {
+		$data->{'Forecast'} = 'Mostly Cloudy, Snow within 12 hours';
+	} elsif  ($data->{'Forecast Icons'} == 19) {
+		$data->{'Forecast'} = 'Mostly Cloudy, Rain or Snow within 12 hours';
+	} elsif  ($data->{'Forecast Icons'} == 7) {
+		$data->{'Forecast'} = 'Partly Cloudy, Rain within 12 hours';
+	} elsif  ($data->{'Forecast Icons'} == 22) {
+		$data->{'Forecast'} = 'Partly Cloudy, Snow within 12 hours';
+	} elsif  ($data->{'Forecast Icons'} == 23) {
+		$data->{'Forecast'} = 'Partly Cloudy, Rain or Snow within 12 hours';
+	} else {
+		$data->{'Forecast'} = 'Unknown';
+	}
 
 	# Time of Sunrise (LOOP 1, offset 91)
 	if ($data->{'Time of Sunrise'} != 32767) {
@@ -456,6 +492,32 @@ sub convert_data {
 
 	# Last 24 hours rain (LOOP 2, offset 56)
 	$data->{'Last 24-Hour Rain'} = $data->{'Last 24-Hour Rain'}*0.2;
+
+	# Barometric Reduction Method (LOOP 2, offset 60)
+	if ($data->{'Barometric Reduction Method'} == 0) {
+		$data->{'Barometric Reduction Method'} = 'User Offset';
+	} elsif ($data->{'Barometric Reduction Method'} == 1) {
+		$data->{'Barometric Reduction Method'} = 'Altimeter Setting';
+	} elsif ($data->{'Barometric Reduction Method'} == 2) { #Always the case for Vantage Pro 2 stations
+		$data->{'Barometric Reduction Method'} = 'NOAA Bar Reduction';
+	} else {
+		$data->{'Barometric Reduction Method'} = 'Unknown';
+	}
+
+	# User-entered Barometric Offset (LOOP 2, offset 61)
+	$data->{'User-entered Barometric Offset'} = inHg_to_bar(1000 * $data->{'User-entered Barometric Offset'});
+
+	# Barometric calibration number (LOOP 2, offset 63)
+	$data->{'Barometric calibration number'} = inHg_to_bar(1000 * $data->{'Barometric calibration number'});
+
+	# Barometric Sensor Raw Reading (LOOP 2, offset 65)
+	$data->{'Barometric Sensor Raw Reading'} = inHg_to_bar(1000 * $data->{'Barometric Sensor Raw Reading'});
+
+	# Absolute Barometric Pressure (LOOP 2, offset 67)
+	$data->{'Absolute Barometric Pressure'} = inHg_to_bar(1000 * $data->{'Absolute Barometric Pressure'});
+
+	# Altimeter Setting (LOOP 2, offset 69)
+	$data->{'Altimeter Setting'} = in_to_mm(1000 * $data->{'Altimeter Setting'});
 }
 
 

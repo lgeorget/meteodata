@@ -1,0 +1,117 @@
+
+CREATE KEYSPACE meteodata WITH replication = {'class': 'SimpleStrategy', 'replication_factor': '1'}  AND durable_writes = true;
+
+CREATE TABLE meteodata.meteo (
+    station uuid,
+    time timestamp,
+    altimeter int,
+    avgwindspeed_10min int,
+    avgwindspeed_2min int,
+    barometer int,
+    barometer_abs int,
+    barometer_raw int,
+    bartrend text,
+    dayet int,
+    dayrain int,
+    dewpoint int,
+    extrahum1 int,
+    extrahum2 int,
+    extrahum3 int,
+    extrahum4 int,
+    extrahum5 int,
+    extrahum6 int,
+    extrahum7 int,
+    extratemp1 int,
+    extratemp2 int,
+    extratemp3 int,
+    extratemp4 int,
+    extratemp5 int,
+    extratemp6 int,
+    extratemp7 int,
+    forecast text,
+    forecast_icons int,
+    heatindex int,
+    insidehum int,
+    insidetemp int,
+    leaftemp1 int,
+    leaftemp2 int,
+    leaftemp3 int,
+    leaftemp4 int,
+    leafwetnesses1 int,
+    leafwetnesses2 int,
+    leafwetnesses3 int,
+    leafwetnesses4 int,
+    monthet int,
+    monthrain int,
+    outsidehum int,
+    outsidetemp int,
+    rain_15min int,
+    rain_1h int,
+    rain_24h int,
+    rainrate int,
+    soilmoistures1 int,
+    soilmoistures2 int,
+    soilmoistures3 int,
+    soilmoistures4 int,
+    soiltemp1 int,
+    soiltemp2 int,
+    soiltemp3 int,
+    soiltemp4 int,
+    solarrad int,
+    stormrain int,
+    stormstartdate int,
+    sunrise int,
+    sunset int,
+    thswindex int,
+    uv int,
+    windchill int,
+    winddir int,
+    windgust_10min int,
+    windgustdir int,
+    windspeed int,
+    yearet int,
+    yearrain int,
+    PRIMARY KEY (station, time)
+) WITH CLUSTERING ORDER BY (time ASC)
+    AND bloom_filter_fp_chance = 0.01
+    AND caching = '{"keys":"ALL", "rows_per_partition":"NONE"}'
+    AND comment = ''
+    AND compaction = {'min_threshold': '4', 'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy', 'max_threshold': '32'}
+    AND compression = {'sstable_compression': 'org.apache.cassandra.io.compress.LZ4Compressor'}
+    AND dclocal_read_repair_chance = 0.1
+    AND default_time_to_live = 0
+    AND gc_grace_seconds = 864000
+    AND max_index_interval = 2048
+    AND memtable_flush_period_in_ms = 0
+    AND min_index_interval = 128
+    AND read_repair_chance = 0.0
+    AND speculative_retry = '99.0PERCENTILE';
+
+CREATE TABLE meteodata.stations (
+    id uuid PRIMARY KEY,
+    address text,
+    altimeter_setting int,
+    barometer_reduction_method int,
+    barometric_calibration int,
+    barometric_offset int,
+    console_battery float,
+    elevation int,
+    latitude float,
+    longitude float,
+    polling_period int,
+    port int,
+    transmitter_battery float
+) WITH bloom_filter_fp_chance = 0.01
+    AND caching = '{"keys":"ALL", "rows_per_partition":"NONE"}'
+    AND comment = ''
+    AND compaction = {'min_threshold': '4', 'class': 'org.apache.cassandra.db.compaction.SizeTieredCompactionStrategy', 'max_threshold': '32'}
+    AND compression = {'sstable_compression': 'org.apache.cassandra.io.compress.LZ4Compressor'}
+    AND dclocal_read_repair_chance = 0.1
+    AND default_time_to_live = 0
+    AND gc_grace_seconds = 864000
+    AND max_index_interval = 2048
+    AND memtable_flush_period_in_ms = 0
+    AND min_index_interval = 128
+    AND read_repair_chance = 0.0
+    AND speculative_retry = '99.0PERCENTILE';
+

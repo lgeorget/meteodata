@@ -24,12 +24,12 @@ use Config::Simple;
 use Getopt::Long;
 use Meteodata::Poller;
 
-if (Proc::PID::File->running()) {
-	print STDERR "Meteodata is already running, exiting";
-	exit(1);
-}
-
-eval { Proc::Daemon::Init; };
+eval { Proc::Daemon::Init;
+	if (Proc::PID::File->running()) {
+		print STDERR "Meteodata is already running, exiting";
+		exit(1);
+	}
+};
 if ($@) {
 	print STDERR "Unable to start the daemon, exiting";
 	exit(2);
@@ -37,7 +37,7 @@ if ($@) {
 
 $Meteodata::Controller::stations = undef;
 $Meteodata::Controller::continue = 1;
-%Meteodata::Controller::pollers;
+%Meteodata::Controller::pollers = ();
 
 $SIG{INT} = $SIG{TERM} = \&signalStopHandler;
 $SIG{PIPE} = 'ignore';

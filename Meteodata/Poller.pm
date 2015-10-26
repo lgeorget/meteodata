@@ -23,11 +23,11 @@ use Time::HiRes;
 use IO::Socket;
 use POSIX;
 
-$Meteodata::Poller::station_id;
-$Meteodata::Poller::station_addr;
-$Meteodata::Poller::station_port;
-$Meteodata::Poller::polling_interval;
-$Meteodata::Poller::db;
+$Meteodata::Poller::station_id = undef;
+$Meteodata::Poller::station_addr = undef;
+$Meteodata::Poller::station_port = undef;
+$Meteodata::Poller::polling_interval = 10;
+$Meteodata::Poller::db = undef;
 $Meteodata::Poller::continue = 1;
 
 $SIG{ALRM} = \&poll_station;

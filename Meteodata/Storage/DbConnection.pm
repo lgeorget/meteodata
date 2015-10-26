@@ -66,9 +66,9 @@ sub DEMOLISH {
 
 sub add_new_data {
 	my ($self,$id,$data) = @_;
-	my $now = time;
+	my $now = time * 1000;
 	print "Inserting data in $id at time $now";
-	my $put_stmt = $Meteodata::Storage::db->prepare("
+	my $query = "
 	INSERT INTO meteo (
 	station,time,
 	bartrend,barometer,barometer_abs,barometer_raw,
@@ -88,13 +88,13 @@ sub add_new_data {
 	windgust_10min, windgustdir,
 	rainrate, rain_15min, rain_1h, rain_24h,
 	dayrain, monthrain, yearrain, stormrain, stormstartdate,
-	UV, solarrad, dewpoint, icepoint, heatindex, windchill, thswindex,
-	dayET, monthET, yearET,
+	UV, solarrad, dewpoint, heatindex, windchill, thswindex,
+	dayET, monthET, yearET, forecast, forecast_icons,
 	sunrise, sunset
 	)
 	VALUES (
 	$id,$now,
-	'$data->{'Bar Trend'}',$data->{'Barometer'},
+	$data->{'Bar Trend'},$data->{'Barometer'},
 	$data->{'Absolute Barometric Pressure'},$data->{'Barometric Sensor Raw Reading'},
 	$data->{'Inside Temperature'},$data->{'Outside Temperature'},
 	$data->{'Inside Humidity'},$data->{'Outside Humidity'},
@@ -123,11 +123,14 @@ sub add_new_data {
 	$data->{'Day Rain'}, $data->{'Month Rain'}, $data->{'Year Rain'},
 	$data->{'Storm Rain'}, $data->{'Start Date of Current Storm'},
 	$data->{'UV'}, $data->{'Solar Radiation'}, $data->{'Dew Point'},
-	$data->{'Ice Point'}, $data->{'Heat Index'},
+	$data->{'Heat Index'},
 	$data->{'Wind Chill'}, $data->{'THSW Index'},
 	$data->{'Day ET'}, $data->{'Month ET'}, $data->{'Year ET'},
+	$data->{'Forecast'}, $data->{'Forecast Icons'},
 	$data->{'Time Sunrise'}, $data->{'Time Sunset'}
-	)");
+	)";
+	print $query;
+	my $put_stmt = $Meteodata::Storage::db->prepare($query);
 	my ($type, $result) = $put_stmt->get->execute([])->get;
 
 	$put_stmt = $Meteodata::Storage::db->prepare("
@@ -135,9 +138,11 @@ sub add_new_data {
 	altimeter_setting = $data->{'Altimeter Setting'},
 	barometer_reduction_method = $data->{'Barometric Reduction Method'},
 	barometric_calibration = $data->{'Barometric calibration number'},
-	barometric_offset = $data->{'User-entered Barometric Offset'}
+	barometric_offset = $data->{'User-entered Barometric Offset'},
+	transmitter_battery = $data->{'Transmitter Battery Status'},
+	console_battery = $data->{'Console Battery Voltage'}
 	WHERE id = $id");
-	my ($type, $result) = $put_stmt->get->execute([])->get;
+	($type, $result) = $put_stmt->get->execute([])->get;
 }
 
 sub discover_stations {

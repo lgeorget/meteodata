@@ -24,9 +24,6 @@ use Protocol::CassandraCQL qw( CONSISTENCY_QUORUM );
 $Meteodata::Storage::db = undef;
 $Meteodata::Storage::loop = undef;
 
-has 'table' => (
-	is => 'ro'
-);
 has 'user' => (
 	is => 'ro'
 );
@@ -55,11 +52,10 @@ sub connect {
 
 sub disconnect {
 	my $self = shift;
-	my $future = Future->new;
 	$Meteodata::Storage::db->close_when_idle->get;
 }
 
-sub DEMOLISH {
+sub DESTROY {
 	my $self = shift;
 	$self->disconnect;
 }
@@ -150,7 +146,7 @@ sub discover_stations {
 	my $sth = $Meteodata::Storage::db->prepare("SELECT id,address,port,polling_period FROM stations")->get;
 	my ($type, $result) = $sth->execute([])->get;
 	my @stations = $result->rows_array;
-	print "Discovered " . scalar(@stations) . " stations";
+	print "DB controller has started (" . scalar(@stations) . ") stations\n";
 	return \@stations;
 }
 

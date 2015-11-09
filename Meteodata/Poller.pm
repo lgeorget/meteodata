@@ -33,6 +33,7 @@ $Meteodata::Poller::continue = 1;
 $SIG{ALRM} = \&poll_station;
 $SIG{TERM} = \&signalStopHandler;
 
+
 sub signalStopHandler() {
 	$Meteodata::Poller::continue = 0;
 }
@@ -46,9 +47,17 @@ sub launch_poller {
 	our $polling_interval = $Meteodata::Poller::polling_interval;
 	our $db = $Meteodata::Poller::db;
 
+	print join(@$new_station) . "\n";
 	($station_id,$station_addr,$station_port,$polling_interval) = @$new_station;
 	$db = $db_connection;
 	# We should verify the type of station too, when we have more than one
+
+	#	eval { Proc::Daemon::Init; };
+	print STDERR "Poller has started for station " . $station_id . "\n";
+	if ($@) {
+		print STDERR "Unable to start the poller daemon, exiting";
+		exit(2);
+	}
 
 	setitimer($polling_interval);
 	run();

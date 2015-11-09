@@ -20,10 +20,6 @@ use IO::Async::Loop;
 use Net::Async::CassandraCQL;
 use Protocol::CassandraCQL qw( CONSISTENCY_QUORUM );
 
-
-$Meteodata::Storage::db = undef;
-$Meteodata::Storage::loop = undef;
-
 has 'user' => (
 	is => 'ro'
 );
@@ -33,26 +29,32 @@ has 'host' => (
 has 'keyspace' => (
 	is => 'ro',
 );
+has 'db' => (
+	is => 'rwp'
+);
+has 'loop' => (
+	is => 'rwp'
+);
 
 sub connect {
 	my $self = shift;
 	my $passwd = shift;
- 	$Meteodata::Storage::loop = IO::Async::Loop->new;
-	$Meteodata::Storage::db = Net::Async::CassandraCQL->new(
+ 	$self->_set_loop(IO::Async::Loop->new);
+	$self->_set_db(Net::Async::CassandraCQL->new(
 		host => $self->host,
 		keyspace => $self->keyspace,
 		username => $self->user,
 		password => $passwd,
 		default_consistency => CONSISTENCY_QUORUM,
-	);
-	$Meteodata::Storage::loop->add($Meteodata::Storage::db);
- 	$Meteodata::Storage::db->connect->get;
-	return defined($Meteodata::Storage::db);
+	));
+	$self->loop->add($self->db);
+ 	$self->db->connect->get;
+	return defined($self->db);
 }
 
 sub disconnect {
 	my $self = shift;
-	$Meteodata::Storage::db->close_when_idle->get;
+	$self->db->close_when_idle->get;
 }
 
 sub DESTROY {
@@ -126,10 +128,10 @@ sub add_new_data {
 	$data->{'Time Sunrise'}, $data->{'Time Sunset'}
 	)";
 	print $query;
-	my $put_stmt = $Meteodata::Storage::db->prepare($query);
+	my $put_stmt = $self->db->prepare($query);
 	my ($type, $result) = $put_stmt->get->execute([])->get;
 
-	$put_stmt = $Meteodata::Storage::db->prepare("
+	$put_stmt = $self->db->prepare("
 	UPDATE stations SET
 	altimeter_setting = $data->{'Altimeter Setting'},
 	barometer_reduction_method = $data->{'Barometric Reduction Method'},
@@ -143,7 +145,7 @@ sub add_new_data {
 
 sub discover_stations {
 	my $self = shift;
-	my $sth = $Meteodata::Storage::db->prepare("SELECT id,address,port,polling_period FROM stations")->get;
+	my $sth = $self->db->prepare("SELECT id,address,port,polling_period FROM stations")->get;
 	my ($type, $result) = $sth->execute([])->get;
 	my @stations = $result->rows_array;
 	print "DB controller has started (" . scalar(@stations) . ") stations\n";

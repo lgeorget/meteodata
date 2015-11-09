@@ -19,7 +19,7 @@ use strict;
 use warnings;
 
 use Proc::Daemon;
-use Time::HiRes;
+use Time::HiRes qw( setitimer ITIMER_REAL );
 use IO::Socket;
 use POSIX;
 
@@ -47,7 +47,6 @@ sub launch_poller {
 	our $polling_interval = $Meteodata::Poller::polling_interval;
 	our $db = $Meteodata::Poller::db;
 
-	print join(@$new_station) . "\n";
 	($station_id,$station_addr,$station_port,$polling_interval) = @$new_station;
 	$db = $db_connection;
 	# We should verify the type of station too, when we have more than one
@@ -59,7 +58,7 @@ sub launch_poller {
 		exit(2);
 	}
 
-	setitimer($polling_interval);
+	setitimer(ITIMER_REAL, $polling_interval);
 	run();
 }
 
@@ -67,7 +66,7 @@ sub run {
 	while ($Meteodata::Poller::continue) {
 		pause; # wait for the polling signal (ALRM)
 	}
-	print "Poller for station " . $Meteodata::Poller::station_id . " exiting"; 
+	print "Poller for station " . $Meteodata::Poller::station_id . " exiting";
 }
 
 sub poll_station {
